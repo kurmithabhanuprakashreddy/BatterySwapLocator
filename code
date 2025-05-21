@@ -1,0 +1,177 @@
+/*
+BatterySwapLocator - Basic Android App Code (MVVM-based)
+This is a simplified starter code to get you up and running.
+It includes: MVVM structure, Retrofit API call, RecyclerView setup,
+and dummy Firebase Auth setup.
+*/
+
+// build.gradle (app level)
+// Add these dependencies
+/*
+dependencies {
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.github.bumptech.glide:glide:4.15.1'
+    implementation 'com.google.firebase:firebase-auth:22.1.1'
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.1'
+}
+*/
+
+// Station.kt - Data Model
+package com.example.batteryswaplocator.model
+
+data class Station(
+    val id: String,
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double
+)
+
+// ApiService.kt - Retrofit API interface
+package com.example.batteryswaplocator.network
+
+import retrofit2.Response
+import retrofit2.http.GET
+import com.example.batteryswaplocator.model.Station
+
+interface ApiService {
+    @GET("stations")
+    suspend fun getStations(): Response<List<Station>>
+}
+
+// StationRepository.kt
+package com.example.batteryswaplocator.repository
+
+import com.example.batteryswaplocator.model.Station
+import com.example.batteryswaplocator.network.ApiService
+
+class StationRepository(private val api: ApiService) {
+    suspend fun fetchStations() = api.getStations()
+}
+
+// StationViewModel.kt
+package com.example.batteryswaplocator.viewmodel
+
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.batteryswaplocator.model.Station
+import com.example.batteryswaplocator.repository.StationRepository
+import kotlinx.coroutines.launch
+
+class StationViewModel(private val repository: StationRepository) : ViewModel() {
+    val stations = MutableLiveData<List<Station>>()
+
+    fun loadStations() {
+        viewModelScope.launch {
+            val response = repository.fetchStations()
+            if (response.isSuccessful) {
+                stations.postValue(response.body())
+            }
+        }
+    }
+}
+
+// MainActivity.kt
+package com.example.batteryswaplocator.ui
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.batteryswaplocator.databinding.ActivityMainBinding
+import com.example.batteryswaplocator.viewmodel.StationViewModel
+import com.example.batteryswaplocator.ui.adapter.StationAdapter
+
+class MainActivity : ComponentActivity() {
+    private lateinit var binding: ActivityMainBinding
+    private val stationViewModel: StationViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        val adapter = StationAdapter()
+        binding.recyclerView.layoutManager = LinearLayoutManager(this)
+        binding.recyclerView.adapter = adapter
+
+        stationViewModel.stations.observe(this) {
+            adapter.submitList(it)
+        }
+
+        stationViewModel.loadStations()
+    }
+}
+
+// StationAdapter.kt - RecyclerView Adapter
+package com.example.batteryswaplocator.ui.adapter
+
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import androidx.recyclerview.widget.RecyclerView
+import com.example.batteryswaplocator.databinding.ItemStationBinding
+import com.example.batteryswaplocator.model.Station
+
+class StationAdapter : RecyclerView.Adapter<StationAdapter.StationViewHolder>() {
+    private var stations: List<Station> = listOf()
+
+    fun submitList(list: List<Station>) {
+        stations = list
+        notifyDataSetChanged()
+    }
+
+    inner class StationViewHolder(private val binding: ItemStationBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(station: Station) {
+            binding.textViewName.text = station.name
+            binding.textViewAddress.text = station.address
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StationViewHolder {
+        val binding = ItemStationBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return StationViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: StationViewHolder, position: Int) {
+        holder.bind(stations[position])
+    }
+
+    override fun getItemCount() = stations.size
+}
+
+// Firebase Auth Code Snippet (Optional - in LoginActivity.kt)
+/*
+FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password)
+    .addOnCompleteListener { task ->
+        if (task.isSuccessful) {
+            // Navigate to MainActivity
+        } else {
+            // Show error
+        }
+    }
+*/
+
+// Dummy JSON response for API
+/*
+[
+  {
+    "id": "1",
+    "name": "Swap Station A",
+    "address": "MG Road, Gurgaon",
+    "latitude": 28.4595,
+    "longitude": 77.0266
+  },
+  {
+    "id": "2",
+    "name": "Swap Station B",
+    "address": "Sector 21, Gurgaon",
+    "latitude": 28.497,
+    "longitude": 77.039
+  }
+]
+*/
